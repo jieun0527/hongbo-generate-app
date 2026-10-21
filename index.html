@@ -1,0 +1,497 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>홍보물 자동 만들기</title>
+<style>
+  :root {
+    --bg: #faf6f0; --card: #ffffff; --ink: #2b2118; --muted: #7a6a5b;
+    --line: #e6dccf; --accent: #7b4a2d; --accent-ink: #ffffff; --soft: #f3ebe0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1c1612; --card: #272019; --ink: #f2e9de; --muted: #b3a291;
+      --line: #3b3128; --accent: #d49a6a; --accent-ink: #1c1612; --soft: #31281f;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif; line-height: 1.6; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 26px; margin: 8px 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 20px; margin-bottom: 18px; }
+  .card h2 { font-size: 18px; margin: 0 0 4px; display: flex; gap: 10px; align-items: center; }
+  .num { background: var(--accent); color: var(--accent-ink); width: 26px; height: 26px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 14px; flex: none; }
+  .hint { color: var(--muted); font-size: 14px; margin: 0 0 12px 36px; }
+  .drop { border: 2px dashed var(--line); border-radius: 12px; padding: 28px 12px; text-align: center;
+    cursor: pointer; background: var(--soft); }
+  .drop.over { border-color: var(--accent); }
+  .drop strong { display: block; font-size: 16px; }
+  .thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 8px; margin-top: 12px; }
+  .thumbs img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); }
+  textarea { width: 100%; min-height: 230px; padding: 12px; border: 1px solid var(--line); border-radius: 10px;
+    background: var(--bg); color: var(--ink); font: inherit; font-size: 15px; resize: vertical; }
+  button { font: inherit; cursor: pointer; border-radius: 10px; border: 1px solid var(--line);
+    background: var(--card); color: var(--ink); padding: 8px 14px; }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent);
+    font-size: 17px; font-weight: 700; padding: 14px 20px; width: 100%; }
+  button:disabled { opacity: .5; cursor: default; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .small { font-size: 14px; color: var(--muted); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; margin-top: 12px; }
+  .photo { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--bg); }
+  .photo img { display: block; width: 100%; }
+  .photo .bar { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; font-size: 13px; }
+  .photo a { color: var(--accent); font-weight: 700; text-decoration: none; }
+  .tabs { display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap; }
+  .tabs button[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .copybox { border: 1px solid var(--line); border-radius: 10px; padding: 14px; margin-bottom: 12px; background: var(--bg); }
+  .copybox h3 { margin: 0 0 8px; font-size: 15px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .copybox pre { margin: 0; white-space: pre-wrap; word-break: keep-all; font: inherit; font-size: 15px; }
+  .tags { color: var(--accent); margin-top: 8px; font-size: 14px; }
+  .msg { padding: 10px 12px; border-radius: 10px; background: var(--soft); margin-top: 12px; font-size: 14px; }
+  .hidden { display: none; }
+  footer { color: var(--muted); font-size: 13px; text-align: center; margin-top: 28px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>홍보물 자동 만들기</h1>
+  <p class="sub">사진과 가게 정보를 넣으면, 인스타그램용 사진과 채널별 홍보 문구를 한 번에 만들어 드립니다.
+    사진은 이 컴퓨터(브라우저) 안에서만 처리되고 어디로도 전송되지 않습니다.</p>
+
+  <section class="card">
+    <h2><span class="num">1</span>매장 사진 올리기</h2>
+    <p class="hint">jpg, png 사진을 여러 장 한 번에 고르셔도 됩니다.</p>
+    <label class="drop" id="drop">
+      <strong>여기를 눌러 사진 고르기</strong>
+      <span class="small">또는 사진을 끌어다 놓으세요</span>
+      <input id="photos" type="file" accept="image/jpeg,image/png" multiple hidden>
+    </label>
+    <div class="thumbs" id="thumbs"></div>
+  </section>
+
+  <section class="card">
+    <h2><span class="num">2</span>가게 정보 확인하기</h2>
+    <p class="hint">이번 주에 맞게 "이번 주 홍보할 것" 아래 줄만 바꾸면 됩니다.</p>
+    <textarea id="info" spellcheck="false"></textarea>
+    <p class="small">신메뉴는 한 줄만 쓰고 이름을 작은따옴표 '...' 로 감싸세요. 혜택 줄에는 "할인"이라는 글자를 넣으세요.</p>
+    <details>
+      <summary class="small">로고 바꾸기 (선택)</summary>
+      <p class="small">기본 로고는 브릿지 카페 로고입니다. 다른 로고를 쓰려면 파일을 고르세요. 고르지 않으면 기본 로고를 씁니다.</p>
+      <input id="logoFile" type="file" accept="image/png,image/jpeg">
+    </details>
+  </section>
+
+  <section class="card">
+    <h2><span class="num">3</span>만들기</h2>
+    <p class="hint">사진이 없어도 문구는 만들어집니다.</p>
+    <button class="primary" id="go">홍보물 만들기</button>
+    <div class="msg hidden" id="msg"></div>
+  </section>
+
+  <section class="card hidden" id="photoCard">
+    <h2>완성된 사진</h2>
+    <p class="hint">1080 x 1080 정사각형 · 오른쪽 아래 로고</p>
+    <div class="row"><button id="zipBtn">전체 한 번에 받기 (zip)</button></div>
+    <div class="grid" id="photoGrid"></div>
+  </section>
+
+  <section class="card hidden" id="copyCard">
+    <h2>홍보 문구</h2>
+    <p class="hint">마음에 드는 문구의 "복사" 버튼을 누르고 붙여넣으세요.</p>
+    <div class="tabs" role="tablist" id="tabs">
+      <button role="tab" data-tab="insta" aria-selected="true">인스타그램</button>
+      <button role="tab" data-tab="blog" aria-selected="false">네이버 블로그</button>
+      <button role="tab" data-tab="kakao" aria-selected="false">카카오톡 공지</button>
+    </div>
+    <div id="copyBody"></div>
+  </section>
+
+  <footer>브릿지 커피 홍보물 자동 만들기 · 사진은 브라우저 안에서만 처리됩니다</footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+"use strict";
+
+/* ---------- 기본 가게 정보 ---------- */
+const 기본정보 = `가게 이름: 브릿지 커피
+위치: 광주 북구 비엔날레 지구
+가게 특징: 직접 로스팅하는 스페셜티 커피, 조용한 1인 좌석 많음
+주 고객층: 30~40대 직장인, 근처 사무실 손님
+
+이번 주 홍보할 것:
+- 신메뉴 '흑임자 라떼' 5,500원, 국산 흑임자를 직접 갈아서 넣음, 고소하고 달지 않음
+- 오전 11시 이전 방문 시 아메리카노 500원 할인`;
+
+const SIZE = 1080, EDGE = 40;
+const $ = (id) => document.getElementById(id);
+let 선택사진 = [];
+let 결과사진 = [];
+let 결과문구 = null;
+
+/* ---------- 문구 만들기 (파이썬 버전과 같은 규칙) ---------- */
+function 받침있나(ch) {
+  const c = ch.charCodeAt(0);
+  return c >= 0xAC00 && c <= 0xD7A3 && (c - 0xAC00) % 28 !== 0;
+}
+const 를 = (w) => (받침있나(w.slice(-1)) ? "을" : "를");
+
+function 정보읽기(글) {
+  const 정보 = { 홍보: [] };
+  let 홍보중 = false;
+  for (let 줄 of 글.split(/\r?\n/)) {
+    줄 = 줄.trim();
+    if (!줄) continue;
+    if (줄.startsWith("-") && 홍보중) {
+      정보.홍보.push(줄.replace(/^[-\s]+/, "").trim());
+    } else if (줄.includes(":")) {
+      const i = 줄.indexOf(":");
+      const 이름 = 줄.slice(0, i).trim(), 값 = 줄.slice(i + 1).trim();
+      홍보중 = 이름.startsWith("이번 주 홍보");
+      if (!홍보중) 정보[이름] = 값;
+    }
+  }
+  return 정보;
+}
+
+function 문장으로(구절) {
+  const 표 = [["넣음", "넣었습니다"], ["않음", "않습니다"], ["있음", "있습니다"], ["없음", "없습니다"]];
+  구절 = 구절.trim().replace(/\.+$/, "");
+  if (구절.endsWith("많음")) {
+    const 앞 = 구절.slice(0, -2).trimEnd();
+    if (앞 && !"이가은는도".includes(앞.slice(-1))) {
+      return 앞 + (받침있나(앞.slice(-1)) ? "이" : "가") + " 많습니다";
+    }
+    return 구절.slice(0, -2) + "많습니다";
+  }
+  for (const [끝, 새끝] of 표) {
+    if (구절.endsWith(끝)) return 구절.slice(0, -끝.length) + 새끝;
+  }
+  return 구절;
+}
+
+function 홍보거리나누기(목록) {
+  let 메뉴 = null;
+  const 혜택 = [], 기타 = [];
+  for (const 항목 of 목록) {
+    const 이름 = 항목.match(/['‘"“](.+?)['’"”]/);
+    if (이름 && !메뉴) {
+      const 뒤 = 항목.slice(이름.index + 이름[0].length).trim();
+      const 가격 = 뒤.match(/\d[\d,]*\s*원/);
+      let 설명 = 가격 ? 뒤.slice(가격.index + 가격[0].length) : 뒤;
+      설명 = 설명.split(/[,，]/).filter((x) => x.trim()).map(문장으로);
+      메뉴 = { 이름: 이름[1], 가격: 가격 ? 가격[0].replace(/\s/g, "") : "", 설명 };
+    } else if (/할인|이벤트|증정/.test(항목)) {
+      혜택.push(항목);
+    } else {
+      기타.push(항목);
+    }
+  }
+  return { 메뉴, 혜택, 기타 };
+}
+
+const 혜택존댓말 = (s) => (/(할인|증정)$/.test(s) ? s + "해 드립니다" : s + "입니다");
+
+function 해시태그(정보, 메뉴, 혜택, 개수 = 10) {
+  const 지역 = (정보["위치"] || "").split(/\s+/).filter(Boolean).map((x) => x.replace("지구", "")).filter(Boolean);
+  const 가게 = (정보["가게 이름"] || "").replace(/\s/g, "");
+  const 특징 = 정보["가게 특징"] || "";
+  const 업종 = ["카페"];
+  if (가게.includes("커피") || 특징.includes("커피")) 업종.push("커피");
+  if (특징.includes("스페셜티")) 업종.push("스페셜티커피");
+  if (특징.includes("로스팅")) 업종.push("직접로스팅");
+
+  const 후보 = [];
+  if (가게) 후보.push(가게);
+  for (const 곳 of 지역.slice(0, 3)) 후보.push(곳 + (곳.includes("카페") ? "" : "카페"));
+  후보.push(...업종.slice(1));
+  if (메뉴) { 후보.push(메뉴.이름.replace(/\s/g, "")); 후보.push("신메뉴"); }
+  for (const 항목 of 혜택) {
+    for (const 단어 of 항목.match(/[가-힣]{3,}/g) || []) {
+      if (["아메리카노", "라떼", "에스프레소"].includes(단어)) 후보.push(단어);
+    }
+  }
+  후보.push("카페추천", "카페스타그램", "오늘의커피", "커피한잔", "일상");
+  const 결과 = [];
+  for (const t of 후보) { const 태그 = "#" + t; if (!결과.includes(태그)) 결과.push(태그); }
+  return 결과.slice(0, 개수).join(" ");
+}
+
+function 인스타문구(정보) {
+  const 가게 = 정보["가게 이름"] || "우리 가게";
+  const 위치 = 정보["위치"] || "";
+  const 특징 = (정보["가게 특징"] || "").split(",").map((x) => x.trim()).filter(Boolean);
+  const { 메뉴, 혜택 } = 홍보거리나누기(정보.홍보);
+  const 분위기 = 특징.length > 1 ? 문장으로(특징[1]) : "";
+  const 혜택문장 = 혜택[0] || "";
+
+  const 감성 = [메뉴 ? "새 메뉴를 준비했습니다. ☕" : `${가게} 소식입니다. ☕`];
+  if (메뉴) { 감성.push(`'${메뉴.이름}'입니다.`, ""); 감성.push(...메뉴.설명.map((x) => x + ".")); }
+  if (분위기) 감성.push("", 분위기 + ".", "천천히 쉬었다 가세요.");
+
+  const 정보줄 = [`[${가게} 이번 주 소식]`, ""];
+  if (메뉴) {
+    정보줄.push(`신메뉴 '${메뉴.이름}' ${메뉴.가격}`.trim());
+    정보줄.push(...메뉴.설명.map((x) => `- ${x}`), "");
+  }
+  if (혜택문장) 정보줄.push(혜택문장, "");
+  if (위치) 정보줄.push(`위치: ${위치}`);
+
+  const 이벤트 = [];
+  if (혜택문장) 이벤트.push("이번 주 혜택을 알려드립니다. ☕", "", 혜택존댓말(혜택문장) + ".");
+  if (메뉴) 이벤트.push(`신메뉴 '${메뉴.이름}' ${메뉴.가격}입니다.`.replace("  ", " "));
+  이벤트.push("", 가게); if (위치) 이벤트.push(위치);
+
+  return {
+    버전: [["감성형", 감성.join("\n").trim()], ["정보형", 정보줄.join("\n").trim()], ["이벤트형", 이벤트.join("\n").trim()]],
+    태그: 해시태그(정보, 메뉴, 혜택),
+  };
+}
+
+function 블로그문구(정보) {
+  const 가게 = 정보["가게 이름"] || "우리 가게";
+  const 위치 = 정보["위치"] || "";
+  const 고객층 = 정보["주 고객층"] || "";
+  const 특징 = (정보["가게 특징"] || "").split(",").map((x) => x.trim()).filter(Boolean);
+  const { 메뉴, 혜택 } = 홍보거리나누기(정보.홍보);
+  const 소개 = 특징[0] || "정성껏 준비한 커피";
+  const 분위기 = 특징.length > 1 ? 문장으로(특징[1]) : "";
+  const 혜택문장 = 혜택[0] || "";
+
+  const 제목 = 메뉴 ? `[${가게}] 이번 주 신메뉴 '${메뉴.이름}'${를(메뉴.이름)} 시작합니다` : `[${가게}] 이번 주 소식입니다`;
+  const 문단 = [`안녕하세요, ${가게}입니다.\n이번 주 소식을 전해드립니다.`];
+
+  const 소개줄 = [위치 ? `${가게}는 ${위치}에 있습니다.` : `${가게}입니다.`, `${소개}${를(소개)} 내립니다.`];
+  if (분위기) 소개줄.push(분위기 + ".", "혼자 오셔서 쉬었다 가셔도 괜찮습니다.");
+  if (고객층) 소개줄.push(`자주 오시는 분들은 ${고객층}입니다.`);
+  문단.push(소개줄.join("\n"));
+
+  if ((정보["가게 특징"] || "").includes("로스팅")) {
+    문단.push("원두는 가게에서 직접 볶습니다.\n볶는 날에 따라 향이 조금씩 다릅니다.\n마음에 들지 않게 볶인 날에는 다시 볶습니다.");
+  }
+  if (메뉴) {
+    const 신메뉴 = [`이번 주 신메뉴는 '${메뉴.이름}'입니다.`];
+    if (메뉴.가격) 신메뉴.push(`가격은 ${메뉴.가격}입니다.`);
+    문단.push(신메뉴.join("\n"));
+    if (메뉴.설명.length) 문단.push(메뉴.설명.map((x) => x + ".").join("\n") + "\n과하지 않은 맛을 생각했습니다.");
+    문단.push(`처음 오시는 분께 '${메뉴.이름}'${를(메뉴.이름)} 권해드립니다.\n평소 드시던 커피가 좋으시면 그대로 드셔도 됩니다.\n맛이 궁금하시면 편하게 물어보셔도 됩니다.`);
+  }
+  if (혜택문장) {
+    const 혜택줄 = ["이번 주 혜택이 있습니다.", 혜택존댓말(혜택문장) + "."];
+    if (혜택문장.includes("오전")) 혜택줄.push("출근길에 들르시면 좋습니다.", "일을 시작하기 전에 잠깐 쉬었다 가셔도 됩니다.");
+    문단.push(혜택줄.join("\n"));
+  }
+  const 정리 = ["■ 이번 주 한눈에 보기"];
+  if (메뉴) 정리.push(`- 신메뉴: '${메뉴.이름}' ${메뉴.가격}`.trim());
+  if (혜택문장) 정리.push(`- 혜택: ${혜택문장}`);
+  if (위치) 정리.push(`- 위치: ${위치}`);
+  문단.push(정리.join("\n"));
+
+  const 방문 = [];
+  if (위치) 방문.push(`위치는 ${위치}입니다.`, "근처에 오실 일이 있으면 들러 주세요.");
+  방문.push("조용히 쉬었다 가시기에 좋습니다.", "커피 한 잔 하실 시간이면 충분합니다.");
+  문단.push(방문.join("\n"));
+  문단.push("과장하지 않고 한 잔씩 정성껏 내리겠습니다.\n이번 주에도 편하게 오세요.\n읽어 주셔서 감사합니다. ☕");
+
+  return { 제목, 본문: 문단.join("\n\n"), 태그: 해시태그(정보, 메뉴, 혜택, 12) };
+}
+
+function 카톡문구(정보) {
+  const 가게 = 정보["가게 이름"] || "우리 가게";
+  const { 메뉴, 혜택 } = 홍보거리나누기(정보.홍보);
+  let 줄2 = "";
+  if (메뉴) 줄2 = `이번 주 신메뉴는 '${메뉴.이름}'` + (메뉴.가격 ? `(${메뉴.가격})` : "") + "입니다.";
+  if (혜택.length) 줄2 = (줄2 ? 줄2 + " " : "") + 혜택존댓말(혜택[0]) + ".";
+  return [`안녕하세요, ${가게}입니다.`, 줄2, "편하게 들러 주세요. 감사합니다."].filter(Boolean).join("\n");
+}
+
+/* ---------- 사진 만들기 ---------- */
+function 이미지불러오기(src) {
+  return new Promise((ok, fail) => {
+    const img = new Image();
+    img.onload = () => ok(img);
+    img.onerror = () => fail(new Error("이미지를 열 수 없어요"));
+    img.src = src;
+  });
+}
+
+// 로고의 투명한 빈 공간을 잘라내고 실제 내용만 남긴다
+function 로고다듬기(img) {
+  const c = document.createElement("canvas");
+  c.width = img.naturalWidth; c.height = img.naturalHeight;
+  const x = c.getContext("2d", { willReadFrequently: true });
+  x.drawImage(img, 0, 0);
+  const d = x.getImageData(0, 0, c.width, c.height).data;
+  let l = c.width, t = c.height, r = -1, b = -1;
+  for (let y = 0; y < c.height; y++) for (let xx = 0; xx < c.width; xx++) {
+    if (d[(y * c.width + xx) * 4 + 3] > 20) { if (xx < l) l = xx; if (xx > r) r = xx; if (y < t) t = y; if (y > b) b = y; }
+  }
+  if (r < 0) return c;
+  const o = document.createElement("canvas");
+  o.width = r - l + 1; o.height = b - t + 1;
+  o.getContext("2d").drawImage(c, l, t, o.width, o.height, 0, 0, o.width, o.height);
+  return o;
+}
+
+async function 로고가져오기() {
+  const f = $("logoFile").files[0];
+  try {
+    const url = f ? URL.createObjectURL(f) : "logo.png";
+    const img = await 이미지불러오기(url);
+    return 로고다듬기(img);
+  } catch (e) { return null; }
+}
+
+function 로고넣기(ctx, 로고) {
+  const D = Math.round(SIZE * 0.15);
+  const x = SIZE - EDGE - D, y = SIZE - EDGE - D;
+  ctx.save();                       // 그림자
+  ctx.shadowColor = "rgba(0,0,0,0.4)"; ctx.shadowBlur = 16; ctx.shadowOffsetY = 4;
+  ctx.fillStyle = "rgba(255,255,255,0.35)";   // 많이 투명한 흰 원
+  ctx.beginPath(); ctx.arc(x + D / 2, y + D / 2, D / 2, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  const w = Math.round(D * 0.74), h = Math.round(로고.height * w / 로고.width);
+  ctx.drawImage(로고, x + Math.round((D - w) / 2), y + Math.round((D - h) / 2), w, h);
+}
+
+async function 사진한장(file, 로고) {
+  const bmp = await createImageBitmap(file);   // 누워 있는 사진은 자동으로 세워 줌
+  const c = document.createElement("canvas");
+  c.width = c.height = SIZE;
+  const ctx = c.getContext("2d");
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, SIZE, SIZE);
+  const s = Math.max(SIZE / bmp.width, SIZE / bmp.height);   // 가운데 기준으로 채워서 자름
+  const w = bmp.width * s, h = bmp.height * s;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(bmp, (SIZE - w) / 2, (SIZE - h) / 2, w, h);
+  if (로고) 로고넣기(ctx, 로고);
+  bmp.close && bmp.close();
+  return new Promise((ok) => c.toBlob(ok, "image/jpeg", 0.95));
+}
+
+const 오늘 = () => { const d = new Date(); return d.getFullYear() + String(d.getMonth() + 1).padStart(2, "0") + String(d.getDate()).padStart(2, "0"); };
+
+/* ---------- 화면 ---------- */
+function 알림(글, 오류) {
+  const m = $("msg"); m.textContent = 글; m.classList.remove("hidden");
+  m.style.color = 오류 ? "#b3261e" : "";
+}
+
+function 썸네일(files) {
+  $("thumbs").innerHTML = "";
+  for (const f of files) {
+    const img = document.createElement("img");
+    img.alt = f.name; img.src = URL.createObjectURL(f);
+    $("thumbs").appendChild(img);
+  }
+}
+function 사진받기(list) {
+  선택사진 = [...list].filter((f) => /^image\/(jpeg|png)$/.test(f.type));
+  썸네일(선택사진);
+}
+$("photos").addEventListener("change", (e) => 사진받기(e.target.files));
+const drop = $("drop");
+["dragover", "dragenter"].forEach((n) => drop.addEventListener(n, (e) => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach((n) => drop.addEventListener(n, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", (e) => 사진받기(e.dataTransfer.files));
+
+// 마지막으로 쓴 가게 정보를 이 브라우저에 기억해 둔다 (안 되면 기본값)
+try { $("info").value = localStorage.getItem("가게정보") || 기본정보; } catch (e) { $("info").value = 기본정보; }
+$("info").addEventListener("input", () => { try { localStorage.setItem("가게정보", $("info").value); } catch (e) {} });
+
+function 복사(글, 버튼) {
+  const 끝 = () => { const 원래 = 버튼.textContent; 버튼.textContent = "복사됨"; setTimeout(() => (버튼.textContent = 원래), 1200); };
+  const 대체 = () => {
+    const t = document.createElement("textarea"); t.value = 글; document.body.appendChild(t); t.select();
+    try { document.execCommand("copy"); 끝(); } catch (e) { alert("복사하지 못했어요. 글을 직접 드래그해서 복사해 주세요."); }
+    t.remove();
+  };
+  if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(글).then(끝, 대체); else 대체();
+}
+
+function 문구상자(제목, 글, 태그) {
+  const box = document.createElement("div"); box.className = "copybox";
+  const h = document.createElement("h3");
+  const span = document.createElement("span"); span.textContent = `${제목} (${글.length}자)`;
+  const btn = document.createElement("button"); btn.textContent = "복사";
+  const 전체 = 태그 ? 글 + "\n\n" + 태그 : 글;
+  btn.addEventListener("click", () => 복사(전체, btn));
+  h.append(span, btn);
+  const pre = document.createElement("pre"); pre.textContent = 글;
+  box.append(h, pre);
+  if (태그) { const t = document.createElement("div"); t.className = "tags"; t.textContent = 태그; box.appendChild(t); }
+  return box;
+}
+
+function 문구보이기(탭) {
+  const body = $("copyBody"); body.innerHTML = "";
+  if (!결과문구) return;
+  if (탭 === "insta") 결과문구.인스타.버전.forEach(([이름, 글]) => body.appendChild(문구상자(이름, 글, 결과문구.인스타.태그)));
+  if (탭 === "blog") body.appendChild(문구상자("제목: " + 결과문구.블로그.제목 + " / 본문", 결과문구.블로그.본문, 결과문구.블로그.태그));
+  if (탭 === "kakao") body.appendChild(문구상자("단골 공지", 결과문구.카톡));
+  document.querySelectorAll("#tabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === 탭)));
+}
+$("tabs").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) 문구보이기(b.dataset.tab); });
+
+$("go").addEventListener("click", async () => {
+  const btn = $("go"); btn.disabled = true; $("msg").classList.add("hidden");
+  try {
+    // 문구
+    const 정보 = 정보읽기($("info").value);
+    if (!정보["가게 이름"]) { 알림("가게 정보에 '가게 이름: ...' 줄이 있어야 해요.", true); return; }
+    결과문구 = { 인스타: 인스타문구(정보), 블로그: 블로그문구(정보), 카톡: 카톡문구(정보) };
+    $("copyCard").classList.remove("hidden");
+    문구보이기("insta");
+
+    // 사진
+    결과사진 = [];
+    $("photoGrid").innerHTML = "";
+    if (선택사진.length) {
+      const 로고 = await 로고가져오기();
+      let 번호 = 1, 실패 = 0;
+      for (const f of 선택사진) {
+        알림(`사진 만드는 중... (${번호}/${선택사진.length})`);
+        try {
+          const blob = await 사진한장(f, 로고);
+          const 이름 = `${오늘()}_${String(번호).padStart(2, "0")}.jpg`;
+          결과사진.push({ 이름, blob });
+          번호++;
+        } catch (e) { 실패++; }
+      }
+      for (const { 이름, blob } of 결과사진) {
+        const url = URL.createObjectURL(blob);
+        const card = document.createElement("div"); card.className = "photo";
+        card.innerHTML = `<img alt="${이름}"><div class="bar"><span>${이름}</span><a download="${이름}">저장</a></div>`;
+        card.querySelector("img").src = url; card.querySelector("a").href = url;
+        $("photoGrid").appendChild(card);
+      }
+      $("photoCard").classList.toggle("hidden", !결과사진.length);
+      알림(`완료: 사진 ${결과사진.length}장과 문구 3가지를 만들었어요.` + (실패 ? ` (열 수 없는 사진 ${실패}장은 건너뛰었어요.)` : "") +
+           (로고 ? "" : " (로고를 불러오지 못해 로고는 넣지 못했어요.)"));
+    } else {
+      $("photoCard").classList.add("hidden");
+      알림("완료: 문구 3가지를 만들었어요. (사진을 올리면 인스타용 사진도 만들어 드려요.)");
+    }
+    $("copyCard").scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (e) {
+    알림("문제가 생겼어요: " + e.message, true);
+  } finally { btn.disabled = false; }
+});
+
+$("zipBtn").addEventListener("click", async () => {
+  if (!window.JSZip) { alert("한 번에 받기를 불러오지 못했어요. 사진 아래의 '저장'을 눌러 한 장씩 받아 주세요."); return; }
+  const zip = new JSZip();
+  결과사진.forEach(({ 이름, blob }) => zip.file(이름, blob));
+  const out = await zip.generateAsync({ type: "blob" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(out);
+  a.download = `홍보사진_${오늘()}.zip`; a.click();
+});
+</script>
+</body>
+</html>
